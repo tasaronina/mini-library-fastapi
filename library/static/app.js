@@ -50,7 +50,7 @@ async function request(url, options = {}) {
     try {
       const body = await response.json();
       detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
-    } catch { /* Keep the HTTP status. */ }
+    } catch {}
     throw new Error(detail);
   }
   return response.status === 204 ? null : response.json();
