@@ -3,47 +3,40 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Мини-библиотека</title>
+    <title>Библиотека</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/app.js" defer></script>
   </head>
   <body>
     <header class="site-header">
       <div class="container header-row">
-        <a class="brand" href="/">📚 Мини-библиотека</a>
-        <a class="docs-link" href="/docs" target="_blank" rel="noopener noreferrer">Открыть API ↗</a>
+        <a class="brand" href="/">Библиотека</a>
+        <a class="docs-link" href="/docs" target="_blank" rel="noopener noreferrer">Документация API</a>
       </div>
     </header>
 
     <main class="container">
       <section class="intro">
-        <div>
-          <span class="eyebrow">Учебный проект FastAPI + SQLite</span>
-          <h1>Учёт книг и выдач</h1>
-          <p>Пять справочников, 25 API-операций и отдельная страница для проверки изменений после развёртывания.</p>
-        </div>
-        <span class="version">Версия 2 · изменение из feature-ветки</span>
+        <h1>Учёт книг</h1>
+        <p>Здесь можно добавлять, изменять и удалять данные библиотеки.</p>
       </section>
 
       <nav class="tabs" aria-label="Разделы библиотеки" id="tabs"></nav>
 
       <section class="workspace">
-        <div class="panel records-panel">
+        <section class="panel records-panel">
           <div class="panel-heading">
-            <div>
-              <span class="eyebrow">Записи в базе</span>
-              <h2 id="section-title">Авторы</h2>
-            </div>
+            <h2 id="section-title">Авторы</h2>
             <button class="button button-secondary" id="refresh-button" type="button">Обновить</button>
           </div>
           <div class="table-scroll" id="records"></div>
-        </div>
+        </section>
 
-        <div class="panel form-panel">
-          <span class="eyebrow" id="form-eyebrow">Новая запись</span>
+        <section class="panel form-panel">
+          <p id="form-eyebrow">Новая запись</p>
           <h2 id="form-title">Добавить автора</h2>
           <form id="record-form"></form>
-        </div>
+        </section>
       </section>
       <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
     </main>
