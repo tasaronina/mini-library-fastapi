@@ -26,8 +26,7 @@ pipeline {
 
         stage('Test') {
             steps {
-                bat '.venv\\Scripts\\python.exe -m compileall -q library'
-                bat '.venv\\Scripts\\python.exe -c "from library.main import app; assert sum(len(r.methods) for r in app.routes if r.path.startswith(\'/api/\')) == 20"'
+                bat '.venv\\Scripts\\python.exe -m pytest -q'
             }
         }
 
