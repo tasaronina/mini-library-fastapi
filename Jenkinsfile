@@ -21,7 +21,7 @@ node {
                 bat '''
                     if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
 
-                    powershell -NoProfile -ExecutionPolicy Bypass -Command "$pidFile = Join-Path $env:DEPLOY_DIR 'server.pid'; if (Test-Path $pidFile) { $serverId = Get-Content $pidFile -ErrorAction SilentlyContinue; if ($serverId) { taskkill.exe /PID $serverId /T /F 2^>^&1 ^| Out-Null }; Remove-Item $pidFile -Force -ErrorAction SilentlyContinue }; Get-NetTCPConnection -State Listen -LocalPort 8001 -ErrorAction SilentlyContinue ^| ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"
+                    powershell -NoProfile -ExecutionPolicy Bypass -Command "$pidFile = Join-Path $env:DEPLOY_DIR 'server.pid'; if (Test-Path $pidFile) { $serverId = Get-Content $pidFile -ErrorAction SilentlyContinue; if ($serverId) { Stop-Process -Id ([int]$serverId) -Force -ErrorAction SilentlyContinue }; Remove-Item $pidFile -Force -ErrorAction SilentlyContinue }; Get-NetTCPConnection -State Listen -LocalPort 8001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"
 
                     robocopy "%WORKSPACE%" "%DEPLOY_DIR%" /E /XD .git .venv __pycache__ .pytest_cache /XF library.db *.pyc Jenkinsfile .gitignore
 
