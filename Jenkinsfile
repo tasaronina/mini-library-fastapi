@@ -18,25 +18,111 @@ node {
 
         if (env.BRANCH_NAME == 'main') {
             stage('Deploy') {
-                bat '''
-                    if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
+                powershell '''
+            $ErrorActionPreference = "Stop"
 
-                    powershell -NoProfile -ExecutionPolicy Bypass -Command "$pidFile = Join-Path $env:DEPLOY_DIR 'server.pid'; if (Test-Path $pidFile) { $serverId = Get-Content $pidFile -ErrorAction SilentlyContinue; if ($serverId) { taskkill.exe /PID $serverId /T /F 2^>^&1 ^| Out-Null }; Remove-Item $pidFile -Force -ErrorAction SilentlyContinue }; Get-NetTCPConnection -State Listen -LocalPort 8001 -ErrorAction SilentlyContinue ^| ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"
+            $deployDir = $env:DEPLOY_DIR
+            $port = 8001
+            $siteUrl = "http://127.0.0.1:$port/"
+            $venvDir = Join-Path $deployDir ".venv"
+            $deployPython = Join-Path $venvDir "Scripts\\python.exe"
 
-                    robocopy "%WORKSPACE%" "%DEPLOY_DIR%" /E /XD .git .venv __pycache__ .pytest_cache /XF library.db *.pyc Jenkinsfile .gitignore
+            New-Item `
+                -ItemType Directory `
+                -Path $deployDir `
+                -Force |
+                Out-Null
 
-                    if %ERRORLEVEL% GEQ 8 exit /b %ERRORLEVEL%
+            $oldConnections = Get-NetTCPConnection `
+                -State Listen `
+                -LocalPort $port `
+                -ErrorAction SilentlyContinue
 
-                    if not exist "%DEPLOY_DIR%\\.venv" "%PYTHON%" -m venv "%DEPLOY_DIR%\\.venv"
+            foreach ($connection in $oldConnections) {
+                Stop-Process `
+                    -Id $connection.OwningProcess `
+                    -Force `
+                    -ErrorAction SilentlyContinue
+            }
 
-                    "%DEPLOY_DIR%\\.venv\\Scripts\\python.exe" -m pip install -r "%DEPLOY_DIR%\\requirements.txt"
+            robocopy `
+                $env:WORKSPACE `
+                $deployDir `
+                /E `
+                /XD .git .venv __pycache__ .pytest_cache `
+                /XF library.db *.pyc Jenkinsfile .gitignore
 
-                    set JENKINS_NODE_COOKIE=dontKillMe
-                    powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:JENKINS_NODE_COOKIE='dontKillMe'; $server = Start-Process -FilePath (Join-Path $env:DEPLOY_DIR '.venv\\Scripts\\python.exe') -ArgumentList '-m','uvicorn','library.main:app','--host','127.0.0.1','--port','8001' -WorkingDirectory $env:DEPLOY_DIR -WindowStyle Hidden -RedirectStandardOutput (Join-Path $env:DEPLOY_DIR 'server.log') -RedirectStandardError (Join-Path $env:DEPLOY_DIR 'server-error.log') -PassThru; Set-Content -Path (Join-Path $env:DEPLOY_DIR 'server.pid') -Value $server.Id"
+            if ($LASTEXITCODE -ge 8) {
+                throw "Не удалось скопировать файлы"
+            }
 
-                    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ready = $false; for ($i = 0; $i -lt 20; $i++) { try { $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8001/' -TimeoutSec 2; if ($response.StatusCode -eq 200) { $ready = $true; break } } catch {}; Start-Sleep -Seconds 1 }; if (-not $ready) { throw 'Сайт не запустился на порту 8001' }"
+            if (-not (Test-Path $deployPython)) {
+                & $env:PYTHON -m venv $venvDir
 
-                    echo Site started at http://127.0.0.1:8001
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Не удалось создать виртуальное окружение"
+                }
+            }
+
+            & $deployPython `
+                -m pip install `
+                -r (Join-Path $deployDir "requirements.txt")
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Не удалось установить зависимости"
+            }
+
+            $env:JENKINS_NODE_COOKIE = "dontKillMe"
+
+            $server = Start-Process `
+                -FilePath $deployPython `
+                -ArgumentList `
+                    "-m",
+                    "uvicorn",
+                    "library.main:app",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    "$port" `
+                -WorkingDirectory $deployDir `
+                -WindowStyle Hidden `
+                -RedirectStandardOutput `
+                    (Join-Path $deployDir "server.log") `
+                -RedirectStandardError `
+                    (Join-Path $deployDir "server-error.log") `
+                -PassThru
+
+            $siteIsReady = $false
+
+            for ($attempt = 1; $attempt -le 20; $attempt++) {
+                try {
+                    $response = Invoke-WebRequest `
+                        -UseBasicParsing `
+                        -Uri $siteUrl `
+                        -TimeoutSec 2
+
+                    if ($response.StatusCode -eq 200) {
+                        $siteIsReady = $true
+                        break
+                    }
+                }
+                catch {
+                    Start-Sleep -Seconds 1
+                }
+            }
+
+            if (-not $siteIsReady) {
+                if (-not $server.HasExited ) {
+                    Stop-Process `
+                        -Id $server.Id `
+                        -Force `
+                        -ErrorAction SilentlyContinue
+                }
+
+                throw "Сайт не запустился на порту $port"
+            }
+
+            Write-Output "Site started at $siteUrl"
                 '''
             }
         }
