@@ -1,9 +1,10 @@
+import os
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
-
-DB_FILE = Path(__file__).resolve().parent.parent / "library.db"
+DEFAULT_DB_FILE = Path(__file__).resolve().parent.parent / "library.db"
+DB_FILE = Path(os.getenv("LIBRARY_DB_PATH", str(DEFAULT_DB_FILE)))
 
 
 def connect():
