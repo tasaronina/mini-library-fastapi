@@ -86,10 +86,6 @@ node {
                     "$port" `
                 -WorkingDirectory $deployDir `
                 -WindowStyle Hidden `
-                -RedirectStandardOutput `
-                    (Join-Path $deployDir "server.log") `
-                -RedirectStandardError `
-                    (Join-Path $deployDir "server-error.log") `
                 -PassThru
 
             $siteIsReady = $false
