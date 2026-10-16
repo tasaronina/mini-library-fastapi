@@ -9,6 +9,19 @@ node {
         checkout scm
     }
 
+   stage('Prepare Registry') {
+    bat '''
+        docker inspect mini-library-registry >nul 2>nul
+
+        if errorlevel 1 (
+            docker run -d --name mini-library-registry -p 127.0.0.1:5000:5000 --restart unless-stopped -v mini_library_registry_data:/var/lib/registry registry:2
+        ) else (
+            docker inspect -f "{{.State.Running}}" mini-library-registry | findstr /C:"true" >nul
+            if errorlevel 1 docker start mini-library-registry
+        )
+    '''
+    }
+
     stage('Build') {
         bat "docker build -t ${image} ."
     }
@@ -20,6 +33,11 @@ node {
     stage('Push') {
         bat "docker push ${image}"
     }
+
+    stage('Show saved images') {
+    bat 'curl.exe -f http://127.0.0.1:5000/v2/mini-library-fastapi/tags/list'
+    }
+
 
     if (env.BRANCH_NAME == 'main') {
 
