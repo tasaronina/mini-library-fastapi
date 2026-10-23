@@ -17,7 +17,8 @@ node {
         ) else (
             docker inspect -f "{{.State.Running}}" mini-library-registry | findstr /C:"true" >nul
             echo CHECK
-            if errorlevel 1 docker start mini-library-registry
+            if errorlevel 1 echo checkkkk docker start mini-library-registry
+            
         )
     '''
     }
