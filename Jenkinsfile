@@ -1,7 +1,6 @@
 
 node {
-    def branch = (env.BRANCH_NAME ?: 'unknown')
-        .replaceAll('[^A-Za-z0-9_.-]', '-')
+    def branch = env.BRANCH_NAME.replaceAll('[^A-Za-z0-9_.-]', '-')
 
     def image = "localhost:5000/mini-library-fastapi:${branch}-${env.BUILD_NUMBER}"
 
