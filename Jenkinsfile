@@ -16,8 +16,12 @@ node {
             docker run -d --name mini-library-registry -p 127.0.0.1:5000:5000 --restart unless-stopped -v mini_library_registry_data:/var/lib/registry registry:2
         ) else (
             docker inspect -f "{{.State.Running}}" mini-library-registry | findstr /C:"true" >nul
-            echo CHECK
-            if errorlevel 1 echo checkkkk docker start mini-library-registry
+             if errorlevel 1 (
+                echo TRUE
+                docker start mini-library-registry
+            ) else (
+                echo FALSE
+            )
             
         )
     '''
