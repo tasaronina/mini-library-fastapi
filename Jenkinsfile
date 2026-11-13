@@ -1,112 +1,42 @@
-
 node {
-    def branch = env.BRANCH_NAME.replaceAll('[^A-Za-z0-9_.-]', '-')
-
-    def image = "localhost:5000/mini-library-fastapi:${branch}-${env.BUILD_NUMBER}"
-
     stage('Checkout') {
         checkout scm
     }
 
-   stage('Prepare Registry') {
-    bat '''
-        docker inspect mini-library-registry >nul 2>nul
-
-        if errorlevel 1 (
-            docker run -d --name mini-library-registry -p 127.0.0.1:5000:5000 --restart unless-stopped -v mini_library_registry_data:/var/lib/registry registry:2
-        ) else (
-            docker inspect -f "{{.State.Running}}" mini-library-registry | findstr /C:"true" >nul
-             if errorlevel 1 (
-                echo TRUE
-                docker start mini-library-registry
-            ) else (
-                echo FALSE
-            )
-            
-        )
-    '''
+    stage('Build catalog image') {
+        bat 'docker build -t mini-library-catalog:lab3 -f backend-catalog/Dockerfile .'
     }
 
-    stage('Build') {
-        bat "docker build -t ${image} ."
+    stage('Build loans image') {
+        bat 'docker build -t mini-library-loans:lab3 -f backend-loans/Dockerfile .'
+    }
+
+    stage('Build frontend image') {
+        bat 'docker build -t mini-library-frontend:lab3 -f frontend/Dockerfile .'
     }
 
     stage('Test') {
-        bat "docker run --rm ${image} python -m pytest -q"
+        bat 'docker run --rm mini-library-catalog:lab3 python -c "import catalog.main"'
+        bat 'docker run --rm mini-library-loans:lab3 python -c "import loans.main"'
     }
 
-    stage('Push') {
-        bat "docker push ${image}"
-    }
-
-    stage('Show saved images') {
-    bat 'curl.exe -f http://127.0.0.1:5000/v2/mini-library-fastapi/tags/list'
-    }
-
-
-    if (env.BRANCH_NAME == 'main') {
-
-        stage('Deploy') {
-            withEnv(["APP_IMAGE=${image}"]) {
-                powershell '''
-                    $ErrorActionPreference = "Stop"
-
-                    $deployDir = "C:/JenkinsDeploy/mini-library-docker"
-                    $nginxDir = Join-Path $deployDir "nginx"
-
-                    New-Item -ItemType Directory -Path $nginxDir -Force |
-                        Out-Null
-
-                    Copy-Item `
-                        -LiteralPath (Join-Path $env:WORKSPACE "compose.yaml") `
-                        -Destination (Join-Path $deployDir "compose.yaml") `
-                        -Force
-
-                    Copy-Item `
-                        -LiteralPath (Join-Path $env:WORKSPACE "nginx/nginx.conf") `
-                        -Destination (Join-Path $nginxDir "nginx.conf") `
-                        -Force
-
-                    $composeFile = Join-Path $deployDir "compose.yaml"
-
-                    docker compose -f $composeFile up -d --no-build --force-recreate api nginx
-
-                    if ($LASTEXITCODE -ne 0) {
-                        throw "Docker Compose deployment failed"
-                    }
-                '''
+    if (env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main') {
+        withEnv(['KUBECONFIG=C:\\Users\\Tasya\\.kube\\config']) {
+            stage('Deploy to Kubernetes') {
+                bat 'kubectl --context docker-desktop apply -f k8s'
+                bat 'kubectl --context docker-desktop rollout restart deployment/backend-catalog-deployment'
+                bat 'kubectl --context docker-desktop rollout restart deployment/backend-loans-deployment'
+                bat 'kubectl --context docker-desktop rollout restart deployment/frontend-deployment'
             }
-        }
 
-        stage('Smoke Test') {
-            powershell '''
-                $ErrorActionPreference = "Stop"
-                $url = "http://127.0.0.1:8081/"
-                $ready = $false
-
-                for ($i = 1; $i -le 20; $i++) {
-                    try {
-                        $response = Invoke-WebRequest `
-                            -UseBasicParsing `
-                            -Uri $url `
-                            -TimeoutSec 3
-
-                        if ($response.StatusCode -eq 200) {
-                            $ready = $true
-                            break
-                        }
-                    }
-                    catch {
-                        Start-Sleep -Seconds 1
-                    }
-                }
-
-                if (-not $ready) {
-                    throw "Application is not available"
-                }
-
-                Write-Output "Application is available at $url"
-            '''
+            stage('Verify deployment') {
+                bat 'kubectl --context docker-desktop rollout status deployment/backend-catalog-deployment --timeout=180s'
+                bat 'kubectl --context docker-desktop rollout status deployment/backend-loans-deployment --timeout=180s'
+                bat 'kubectl --context docker-desktop rollout status deployment/frontend-deployment --timeout=180s'
+                bat 'kubectl --context docker-desktop get deployments'
+                bat 'kubectl --context docker-desktop get pods'
+                bat 'kubectl --context docker-desktop get svc'
+            }
         }
     }
 }

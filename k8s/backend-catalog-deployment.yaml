@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-catalog-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend-catalog
+  template:
+    metadata:
+      labels:
+        app: backend-catalog
+    spec:
+      containers:
+        - name: backend-catalog
+          image: mini-library-catalog:lab3
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: LIBRARY_DB_PATH
+              value: /data/library.db
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: db-volume
+              mountPath: /data
+      volumes:
+        - name: db-volume
+          hostPath:
+            path: /tmp/mini-library-lr3-db
+            type: DirectoryOrCreate

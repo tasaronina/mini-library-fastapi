@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-loans-service
+spec:
+  type: ClusterIP
+  selector:
+    app: backend-loans
+  ports:
+    - port: 8000
+      targetPort: 8000

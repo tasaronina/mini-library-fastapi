@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  default.conf: |
+    server {
+        listen 80;
+
+        location /api/authors {
+            proxy_pass http://backend-catalog-service:8000;
+        }
+        location /api/genres {
+            proxy_pass http://backend-catalog-service:8000;
+        }
+        location /api/books {
+            proxy_pass http://backend-catalog-service:8000;
+        }
+        location /api/readers {
+            proxy_pass http://backend-loans-service:8000;
+        }
+        location /api/loans {
+            proxy_pass http://backend-loans-service:8000;
+        }
+        location /docs {
+            proxy_pass http://backend-catalog-service:8000;
+        }
+        location /openapi.json {
+            proxy_pass http://backend-catalog-service:8000;
+        }
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+    }
